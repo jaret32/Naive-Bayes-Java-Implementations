@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  *
@@ -27,13 +28,12 @@ public class HouseVotesClassifier {
     private int[][] cMatrix;
     
     // keep track of class totals when training
-    private int[] counts;
+    private int[] counts = new int[numClasses];
     private int total;
     
     
     public HouseVotesClassifier() {
         datasets = new ArrayList();
-        cMatrix = new int[numClasses][numClasses];
     }
     
     // reads the data file and converts the rows into datasets
@@ -62,9 +62,23 @@ public class HouseVotesClassifier {
         Collections.shuffle(datasets);
     }
     
-    // alter data
-    public void alterData() {
-        
+    // shuffle 10 percent of attributes
+    public void shuffleData() {
+        int numExamples = datasets.size();
+        int numAttributes = datasets.get(0).length - 1;
+        int numCols = (int)Math.ceil(0.1 * numAttributes);
+        ArrayList<Integer> list = new ArrayList();
+        for (int i = 1; i < numAttributes + 1; i++) list.add(i);
+        Collections.shuffle(list);
+        for (int i = 0; i < numCols; i++) {
+            int col = list.get(i);
+            for (int j = 0; j < numExamples; j++) {
+                int[] randoms = ThreadLocalRandom.current().ints(numExamples, 0, numExamples).toArray();
+                int temp = datasets.get(j)[col];
+                datasets.get(j)[col] = datasets.get(randoms[j])[col];
+                datasets.get(randoms[j])[col] = temp;
+            }
+        }
     }
     
     // trains the model with the given examples
@@ -79,6 +93,7 @@ public class HouseVotesClassifier {
             // increment class total
             int party = datapoint[0];
             counts[party]++;
+            total++;
             // increment attribute totals
             for (int j = 1; j < datapoint.length; j++) {
                 totals[party][j-1][datapoint[j]]++;
@@ -96,9 +111,9 @@ public class HouseVotesClassifier {
         }
         
         // for each attribute multiply previous probability by attribute probability
-        for (int i = 0; i < observation.length - 1; i++) {
+        for (int i = 1; i < observation.length; i++) {
             for (int j = 0; j < probabilities.length; j++) {
-                probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]/counts[j]);
+                probabilities[j] = probabilities[j] * ((double)totals[j][i-1][observation[i]]+1/counts[j]);
             }
         }
         
@@ -120,6 +135,8 @@ public class HouseVotesClassifier {
     
     // creates 10 folds for cross validation and trains/tests each iteration
     public void runCrossValidation() {
+        // create new confusion matrix
+        cMatrix = new int[numClasses][numClasses];
         // get size of each partition
         int partitionSize = (int)((double)datasets.size() / 10);
         
@@ -128,7 +145,7 @@ public class HouseVotesClassifier {
             int end = partitionSize * fold;
             int start = end - partitionSize;
             // create training examples by splicing out test sets
-            List<int[]> examples = datasets.subList(0, start);
+            List<int[]> examples = new ArrayList(datasets.subList(0, start));
             examples.addAll(datasets.subList(end + 1, datasets.size()));
             // splice out test sets
             List<int[]> tests = datasets.subList(start, end + 1);
@@ -145,6 +162,10 @@ public class HouseVotesClassifier {
             }
             System.out.println();
         }
+        System.out.println();
+        System.out.println("Accuracy: " + Loss.calculateAccuracy(cMatrix));
+        System.out.println("Macro-Average Precision: " + Loss.calculatePrecision(cMatrix));
+        System.out.println("Macro-Average Recall: " + Loss.calculateRecall(cMatrix));
         System.out.println();
     }
     

@@ -43,6 +43,23 @@ public class NaiveBayes {
         irisClassifier.runCrossValidation();
         soybeanClassifier.runCrossValidation();
         houseVotesClassifier.runCrossValidation();
+        
+        System.out.println("\n\n--------------------SHUFFLING 10% OF ATTRIBUTES--------------------\n\n\n");
+        
+        // shuffle 10 percent of attributes
+        breastCancerClassifier.shuffleData();
+        glassClassifier.shuffleData();
+        irisClassifier.shuffleData();
+        soybeanClassifier.shuffleData();
+        houseVotesClassifier.shuffleData();
+        
+        
+        // re run 10-fold cv on shuffled datasets
+        breastCancerClassifier.runCrossValidation();
+        glassClassifier.runCrossValidation();
+        irisClassifier.runCrossValidation();
+        soybeanClassifier.runCrossValidation();
+        houseVotesClassifier.runCrossValidation();
     }
     
 }

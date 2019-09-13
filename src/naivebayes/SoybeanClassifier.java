@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  *
@@ -34,7 +35,6 @@ class SoybeanClassifier {
     
     public SoybeanClassifier() {
         datasets = new ArrayList();
-        cMatrix = new int[numClasses][numClasses];
     }
     
     // reads the data file and converts the rows into datasets
@@ -64,6 +64,25 @@ class SoybeanClassifier {
         }
         // shuffle the dataset before 10-fold cv
         Collections.shuffle(datasets);
+    }
+    
+    // shuffle 10 percent of attributes
+    public void shuffleData() {
+        int numExamples = datasets.size();
+        int numAttributes = datasets.get(0).length - 1;
+        int numCols = (int)Math.ceil(0.1 * numAttributes);
+        ArrayList<Integer> list = new ArrayList();
+        for (int i = 0; i < numAttributes; i++) list.add(i);
+        Collections.shuffle(list);
+        for (int i = 0; i < numCols; i++) {
+            int col = list.get(i);
+            for (int j = 0; j < numExamples; j++) {
+                int[] randoms = ThreadLocalRandom.current().ints(numExamples, 0, numExamples).toArray();
+                int temp = datasets.get(j)[col];
+                datasets.get(j)[col] = datasets.get(randoms[j])[col];
+                datasets.get(randoms[j])[col] = temp;
+            }
+        }
     }
     
     // trains the model with the given examples
@@ -100,7 +119,7 @@ class SoybeanClassifier {
         // for each attribute multiply previous probability by attribute probability
         for (int i = 0; i < observation.length - 1; i++) {
             for (int j = 0; j < probabilities.length; j++) {
-                probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]/counts[j]);
+                probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]+1/counts[j]);
             }
         }
         
@@ -123,12 +142,14 @@ class SoybeanClassifier {
         for (int[] test : tests) {
             int actual = test[35];
             int predicted = classify(test);
-            cMatrix[actual][predicted]++;
+            if (predicted == -1);
+            else cMatrix[actual][predicted]++;
         }
     }
     
     // creates 10 folds for cross validation and trains/tests each iteration
     public void runCrossValidation() {
+        cMatrix = new int[numClasses][numClasses];
         // get size of each partition
         int partitionSize = (int)((double)datasets.size() / 10);
         // iterate over 10 folds
@@ -136,7 +157,7 @@ class SoybeanClassifier {
             int end = partitionSize * fold;
             int start = end - partitionSize;
             // create training examples by splicing out test sets
-            List<int[]> examples = datasets.subList(0, start);
+            List<int[]> examples = new ArrayList(datasets.subList(0, start));
             examples.addAll(datasets.subList(end + 1, datasets.size()));
             // splice out test sets
             List<int[]> tests = datasets.subList(start, end + 1);
@@ -154,6 +175,10 @@ class SoybeanClassifier {
         }
         System.out.println();
         //System.out.println(Arrays.deepToString(cMatrix).replace("], ", "]\n").replace("[[", "[").replace("]]", "]"));
+        System.out.println("Accuracy: " + Loss.calculateAccuracy(cMatrix));
+        System.out.println("Macro-Average Precision: " + Loss.calculatePrecision(cMatrix));
+        System.out.println("Macro-Average Recall: " + Loss.calculateRecall(cMatrix));
+        System.out.println();
     }
     
 }

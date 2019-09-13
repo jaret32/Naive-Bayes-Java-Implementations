@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  *
@@ -29,6 +30,7 @@ public class GlassClassifier {
     private ArrayList<double[]> continuousData;
     private ArrayList<int[]> datasets;
     
+    private int numClasses = 7;
     // holds attribute totals for calculating probabilities
     private int[][][] totals;
     // used to track fp, fn, tp, and tn
@@ -47,7 +49,6 @@ public class GlassClassifier {
         Arrays.fill(mins, Double.MAX_VALUE);
         continuousData = new ArrayList();
         datasets = new ArrayList();
-        cMatrix = new int[7][7];
     }
     
     // reads the data file and converts the rows into datasets
@@ -93,6 +94,25 @@ public class GlassClassifier {
         Collections.shuffle(datasets);
     }
     
+    // shuffle 10 percent of attributes
+    public void shuffleData() {
+        int numExamples = datasets.size();
+        int numAttributes = datasets.get(0).length - 1;
+        int numCols = (int)Math.ceil(0.1 * numAttributes);
+        ArrayList<Integer> list = new ArrayList();
+        for (int i = 0; i < numAttributes; i++) list.add(i);
+        Collections.shuffle(list);
+        for (int i = 0; i < numCols; i++) {
+            int col = list.get(i);
+            for (int j = 0; j < numExamples; j++) {
+                int[] randoms = ThreadLocalRandom.current().ints(numExamples, 0, numExamples).toArray();
+                int temp = datasets.get(j)[col];
+                datasets.get(j)[col] = datasets.get(randoms[j])[col];
+                datasets.get(randoms[j])[col] = temp;
+            }
+        }
+    }
+    
     // trains the model with the given examples
     public void train(List<int[]> examples) {
         // reset totals
@@ -124,7 +144,8 @@ public class GlassClassifier {
         
         for (int i = 0; i < observation.length - 1; i++) {
             for (int j = 0; j < probabilities.length; j++) {
-                probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]/counts[j]);
+                if (counts[j] == 0) probabilities[j] = 0;
+                else probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]+1/counts[j]);
             }
         }
         
@@ -142,22 +163,25 @@ public class GlassClassifier {
     }
     
     public void test(List<int[]> tests) {
-        
         for (int[] test : tests) {
             int actual = test[9];
             int predicted = classify(test);
-            cMatrix[actual-1][predicted]++;
+            if (predicted == -1);
+            else cMatrix[actual-1][predicted]++;
         }
     }
     
     public void runCrossValidation() {
+        // create new confusion matrix
+        cMatrix = new int[numClasses][numClasses];
+        
         int partitionSize = (int)((double)datasets.size() / 10);
         
         for (int fold = 1; fold <= 10; fold++) {
             int end = partitionSize * fold;
             int start = end - partitionSize;
             
-            List<int[]> examples = datasets.subList(0, start);
+            List<int[]> examples = new ArrayList(datasets.subList(0, start));
             examples.addAll(datasets.subList(end + 1, datasets.size()));
             
             List<int[]> tests = datasets.subList(start, end + 1);
@@ -173,6 +197,10 @@ public class GlassClassifier {
             }
             System.out.println();
         }
+        System.out.println();
+        System.out.println("Accuracy: " + Loss.calculateAccuracy(cMatrix));
+        System.out.println("Macro-Average Precision: " + Loss.calculatePrecision(cMatrix));
+        System.out.println("Macro-Average Recall: " + Loss.calculateRecall(cMatrix));
         System.out.println();
     }
     

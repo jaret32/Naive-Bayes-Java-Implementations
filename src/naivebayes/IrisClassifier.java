@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  *
@@ -19,7 +20,7 @@ import java.util.Scanner;
  */
 public class IrisClassifier {
     
-    // used for dicretization of continuous values
+    // used for discretization of continuous values
     private double[] maxes;
     private double[] mins;
     private int bins = 3;
@@ -46,7 +47,6 @@ public class IrisClassifier {
         Arrays.fill(mins, Double.MAX_VALUE);
         continuousData = new ArrayList();
         datasets = new ArrayList();
-        cMatrix = new int[3][3];
     }
     
     // reads the data file and converts the rows into datasets and then discretizes them
@@ -100,6 +100,25 @@ public class IrisClassifier {
         Collections.shuffle(datasets);
     }
     
+    // shuffle 10 percent of attributes
+    public void shuffleData() {
+        int numExamples = datasets.size();
+        int numAttributes = datasets.get(0).length - 1;
+        int numCols = (int)Math.ceil(0.1 * numAttributes);
+        ArrayList<Integer> list = new ArrayList();
+        for (int i = 0; i < numAttributes; i++) list.add(i);
+        Collections.shuffle(list);
+        for (int i = 0; i < numCols; i++) {
+            int col = list.get(i);
+            for (int j = 0; j < numExamples; j++) {
+                int[] randoms = ThreadLocalRandom.current().ints(numExamples, 0, numExamples).toArray();
+                int temp = datasets.get(j)[col];
+                datasets.get(j)[col] = datasets.get(randoms[j])[col];
+                datasets.get(randoms[j])[col] = temp;
+            }
+        }
+    }
+    
     // trains the model with the given examples
     public void train(List<int[]> examples) {
         // reset totals
@@ -133,7 +152,7 @@ public class IrisClassifier {
         // for each attribute multiply previous probability by attribute probability
         for (int i = 0; i < observation.length - 1; i++) {
             for (int j = 0; j < probabilities.length; j++) {
-                probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]/counts[j]);
+                probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]+1/counts[j]);
             }
         }
         
@@ -157,12 +176,14 @@ public class IrisClassifier {
         for (int[] test : tests) {
             int actual = test[4];
             int predicted = classify(test);
-            cMatrix[actual][predicted]++;
+            if (predicted == -1);
+            else cMatrix[actual][predicted]++;
         }
     }
     
     // creates 10 folds for cross validation and trains/tests each iteration
     public void runCrossValidation() {
+        cMatrix = new int[3][3];
         // get size of each partition
         int partitionSize = (int)((double)datasets.size() / 10);
         
@@ -171,10 +192,10 @@ public class IrisClassifier {
             int end = partitionSize * fold;
             int start = end - partitionSize;
             
-            List<int[]> examples = datasets.subList(0, start);
-            examples.addAll(datasets.subList(end + 1, datasets.size()));
+            List<int[]> examples = new ArrayList(datasets.subList(0, start));
+            examples.addAll(datasets.subList(end, datasets.size()));
             
-            List<int[]> tests = datasets.subList(start, end + 1);
+            List<int[]> tests = datasets.subList(start, end);
             
             this.train(examples);
             this.test(tests);
@@ -188,6 +209,10 @@ public class IrisClassifier {
             }
             System.out.println();
         }
+        System.out.println();
+        System.out.println("Accuracy: " + Loss.calculateAccuracy(cMatrix));
+        System.out.println("Macro-Average Precision: " + Loss.calculatePrecision(cMatrix));
+        System.out.println("Macro-Average Recall: " + Loss.calculateRecall(cMatrix));
         System.out.println();
     }
     
