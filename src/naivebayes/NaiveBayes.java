@@ -18,6 +18,7 @@ public class NaiveBayes {
      */
     
     public static void main(String[] args) {
+        // initialize one of each classifier
         BreastCancerClassifier breastCancerClassifier = new BreastCancerClassifier();
         GlassClassifier glassClassifier = new GlassClassifier();
         IrisClassifier irisClassifier = new IrisClassifier();
@@ -25,6 +26,7 @@ public class NaiveBayes {
         HouseVotesClassifier houseVotesClassifier = new HouseVotesClassifier();
         
         try {
+            // process the data files into each classifier
             breastCancerClassifier.processData("breast-cancer-wisconsin.data");
             glassClassifier.processData("glass.data");
             irisClassifier.processData("iris.data");
@@ -35,6 +37,7 @@ public class NaiveBayes {
             return;
         }
         
+        // run 10-fold cross validation for each classifier
         breastCancerClassifier.runCrossValidation();
         glassClassifier.runCrossValidation();
         irisClassifier.runCrossValidation();

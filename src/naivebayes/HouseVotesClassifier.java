@@ -29,8 +29,6 @@ public class HouseVotesClassifier {
     // keep track of class totals when training
     private int[] counts;
     private int total;
-    private int numDemocrats;
-    private int numRepublicans;
     
     
     public HouseVotesClassifier() {
@@ -38,6 +36,7 @@ public class HouseVotesClassifier {
         cMatrix = new int[numClasses][numClasses];
     }
     
+    // reads the data file and converts the rows into datasets
     public void processData(String filePath) throws FileNotFoundException {
         Scanner sc = new Scanner(new File(filePath));
         ArrayList<String> lines = new ArrayList();
@@ -59,6 +58,7 @@ public class HouseVotesClassifier {
             }
             datasets.add(data);
         }
+        // shuffle the dataset before 10-fold cv
         Collections.shuffle(datasets);
     }
     
@@ -67,7 +67,7 @@ public class HouseVotesClassifier {
         
     }
     
-    // rework 10-fold cross validation
+    // trains the model with the given examples
     public void train(List<int[]> examples) {
         // reset totals
         Arrays.fill(counts, 0);
@@ -86,6 +86,7 @@ public class HouseVotesClassifier {
         }
     }
     
+    // returns the predicted class for a given dataset
     public int classify(int[] observation) {
         double[] probabilities = new double[2];
         
@@ -121,6 +122,7 @@ public class HouseVotesClassifier {
     public void runCrossValidation() {
         // get size of each partition
         int partitionSize = (int)((double)datasets.size() / 10);
+        
         // iterate over 10 folds
         for (int fold = 1; fold <= 10; fold++) {
             int end = partitionSize * fold;
@@ -134,6 +136,7 @@ public class HouseVotesClassifier {
             this.train(examples);
             this.test(tests);
         }
+        
         // prints confusion matrix
         System.out.println("CONFUSION MATRIX FOR HOUSE VOTES CLASSIFIER: \n");
         for (int i = 0; i < cMatrix.length; i++) {

@@ -75,6 +75,7 @@ public class BreastCancerClassifier {
         }
     }
     
+    // returns the predicted class for a given dataset
     public int classify(int[] observation) {
         double pBenign = (double)numBenign/(numBenign + numMalignant);
         double pMalignant = (double)numMalignant/(numBenign + numMalignant);

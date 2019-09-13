@@ -19,6 +19,7 @@ import java.util.Scanner;
  */
 public class IrisClassifier {
     
+    // used for dicretization of continuous values
     private double[] maxes;
     private double[] mins;
     private int bins = 3;
@@ -27,7 +28,9 @@ public class IrisClassifier {
     private ArrayList<double[]> continuousData;
     private ArrayList<int[]> datasets;
     
+    // holds attribute totals for calculating probabilities
     private int[][][] totals;
+    // used to track fp, fn, tp, and tn
     private int[][] cMatrix;
     
     // keep track of class totals when training
@@ -46,6 +49,7 @@ public class IrisClassifier {
         cMatrix = new int[3][3];
     }
     
+    // reads the data file and converts the rows into datasets and then discretizes them
     public void processData(String filePath) throws FileNotFoundException {
         Scanner sc = new Scanner(new File(filePath));
         ArrayList<String> lines = new ArrayList();
@@ -58,6 +62,7 @@ public class IrisClassifier {
             if (parts.length == 1) continue;
             double[] data = new double[parts.length];
             
+            // check for min and max value of each attribute and record
             for (int j = 0; j < parts.length - 1; j++) {
                 double val = Double.parseDouble(parts[j]);
                 if (val > maxes[j]) maxes[j] = val;
@@ -76,12 +81,13 @@ public class IrisClassifier {
             continuousData.add(data);
         }
         
+        // calculate a range to convert continuous data to discrete
         for (int i = 0; i < steps.length; i++) steps[i] = (maxes[i] - mins[i]) / bins;
         
         for (int i = 0; i < continuousData.size(); i++) {
             double[] datapoint = continuousData.get(i);
             int[] data = new int[datapoint.length];
-            
+            // calculate which range it falls into and assign discrete value
             for (int j = 0; j < datapoint.length - 1; j++) {
                 int k = 0;
                 while ((k+1) * steps[j] + mins[j] < datapoint[j]) k++;
@@ -90,10 +96,11 @@ public class IrisClassifier {
             data[datapoint.length-1] = (int) datapoint[datapoint.length-1];
             datasets.add(data);
         }
+        // shuffle the dataset before 10-fold cv
         Collections.shuffle(datasets);
     }
     
-    // rework 10-fold cross validation
+    // trains the model with the given examples
     public void train(List<int[]> examples) {
         // reset totals
         Arrays.fill(counts, 0);
@@ -103,34 +110,36 @@ public class IrisClassifier {
         int[] datapoint;
         for (int i = 0; i < examples.size(); i++) {
             datapoint = examples.get(i);
-            //System.out.println(Arrays.toString(datapoint));
+            // increment class totals
             int type = datapoint[4];
             counts[type]++;
             total++;
-            
+            // increment attribute totals
             for (int j = 0; j < datapoint.length - 1; j++) {
                 totals[type][j][datapoint[j]]++;
             }
         }
     }
     
+    // returns the predicted class for a given dataset
     public int classify(int[] observation) {
         double[] probabilities = new double[3];
         
+        // initialize probabilites to class probabilites
         for (int i = 0; i < probabilities.length; i++) {
             probabilities[i] = (double)counts[i]/total;
         }
         
+        // for each attribute multiply previous probability by attribute probability
         for (int i = 0; i < observation.length - 1; i++) {
             for (int j = 0; j < probabilities.length; j++) {
                 probabilities[j] = probabilities[j] * ((double)totals[j][i][observation[i]]/counts[j]);
             }
         }
         
+        // calculate and return argmax of probabilities
         double max = 0;
         int type = -1;
-        
-        //System.out.println(Arrays.toString(probabilities));
         
         for (int i = 0; i < probabilities.length; i++) {
             if (probabilities[i] > max) {
@@ -142,6 +151,7 @@ public class IrisClassifier {
         return type;
     }
     
+    // tests the model with given test set and builds confusion matrix
     public void test(List<int[]> tests) {
         
         for (int[] test : tests) {
@@ -151,9 +161,12 @@ public class IrisClassifier {
         }
     }
     
+    // creates 10 folds for cross validation and trains/tests each iteration
     public void runCrossValidation() {
+        // get size of each partition
         int partitionSize = (int)((double)datasets.size() / 10);
         
+        // iterate over 10 folds
         for (int fold = 1; fold <= 10; fold++) {
             int end = partitionSize * fold;
             int start = end - partitionSize;
@@ -167,6 +180,7 @@ public class IrisClassifier {
             this.test(tests);
         }
         
+        // prints confusion matrix
         System.out.println("CONFUSION MATRIX FOR IRIS CLASSIFIER: \n");
         for (int i = 0; i < cMatrix.length; i++) {
             for (int j = 0; j < cMatrix[i].length; j++) {

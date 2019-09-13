@@ -20,6 +20,7 @@ import java.util.Scanner;
 
 public class GlassClassifier {
     
+    // used for dicretization of continuous values
     private double[] maxes;
     private double[] mins;
     private int bins = 7;
@@ -28,7 +29,9 @@ public class GlassClassifier {
     private ArrayList<double[]> continuousData;
     private ArrayList<int[]> datasets;
     
+    // holds attribute totals for calculating probabilities
     private int[][][] totals;
+    // used to track fp, fn, tp, and tn
     private int[][] cMatrix;
     
     // keep track of class totals when training
@@ -47,6 +50,7 @@ public class GlassClassifier {
         cMatrix = new int[7][7];
     }
     
+    // reads the data file and converts the rows into datasets
     public void processData(String filePath) throws FileNotFoundException {
         Scanner sc = new Scanner(new File(filePath));
         ArrayList<String> lines = new ArrayList();
@@ -58,6 +62,7 @@ public class GlassClassifier {
             String[] parts = lines.get(i).split(",");
             double[] data = new double[parts.length - 1];
             
+            // check for min and max value of each attribute and record
             for (int j = 1; j < parts.length; j++) {
                 double val = Double.parseDouble(parts[j]);
                 if (j < parts.length -1) {
@@ -69,12 +74,13 @@ public class GlassClassifier {
             continuousData.add(data);
         }
         
+        // calculate a range to convert continuous data to discrete
         for (int i = 0; i < steps.length; i++) steps[i] = (maxes[i] - mins[i]) / bins;
         
         for (int i = 0; i < rows; i++) {
             double[] datapoint = continuousData.get(i);
             int[] data = new int[datapoint.length];
-            
+            // calculate which range it falls into and assign discrete value
             for (int j = 0; j < datapoint.length - 1; j++) {
                 int k = 0;
                 while ((k+1) * steps[j] + mins[j] < datapoint[j]) k++;
@@ -83,10 +89,11 @@ public class GlassClassifier {
             data[datapoint.length-1] = (int) datapoint[datapoint.length-1];
             datasets.add(data);
         }
+        // shuffle the dataset before 10-fold cv
         Collections.shuffle(datasets);
     }
     
-    // rework 10-fold cross validation
+    // trains the model with the given examples
     public void train(List<int[]> examples) {
         // reset totals
         Arrays.fill(counts, 0);
@@ -96,17 +103,18 @@ public class GlassClassifier {
         int[] datapoint;
         for (int i = 0; i < examples.size(); i++) {
             datapoint = examples.get(i);
-            
+            // increment class totals
             int type = datapoint[9];
             counts[type-1]++;
             total++;
-            
+            // increment attribute totals
             for (int j = 0; j < datapoint.length - 1; j++) {
                 totals[type-1][j][datapoint[j]]++;
             }
         }
     }
     
+    // returns the predicted class for a given dataset
     public int classify(int[] observation) {
         double[] probabilities = new double[7];
         
